@@ -1,0 +1,82 @@
+﻿@page "/"
+@using System.ComponentModel.DataAnnotations
+@inject TourSelectionFront.Services.RabbitMqService RMQservice
+
+<EditForm Model="tourBookingModel" OnValidSubmit="HandleSubmit" FormName="BookTour">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <!-- Name Field -->
+    <div class="form-group">
+        <label for="name">Name</label>
+        <InputText id="name" class="form-control" @bind-Value="tourBookingModel.Name" />
+        <ValidationMessage For="@(() => tourBookingModel.Name)" />
+    </div>
+
+    <!-- Email Field -->
+    <div class="form-group">
+        <label for="email">Email</label>
+        <InputText id="email" class="form-control" @bind-Value="tourBookingModel.Email" />
+        <ValidationMessage For="@(() => tourBookingModel.Email)" />
+    </div>
+
+    <!-- Tour Dropdown -->
+    <div class="form-group">
+        <label for="tour">Tours</label>
+        <InputSelect id="tour" class="form-control" @bind-Value="tourBookingModel.Tour">
+            <option value="">Choose one</option>
+            <option value="City Tour">City Tour</option>
+            <option value="Mountain Tour">Mountain Tour</option>
+            <option value="Beach Tour">Beach Tour</option>
+        </InputSelect>
+        <ValidationMessage For="@(() => tourBookingModel.Tour)" />
+    </div>
+
+    <!-- Book/Cancel Radio Buttons -->
+    <div class="form-group">
+        <label>Action</label>
+        <InputRadioGroup @bind-Value="tourBookingModel.Action">
+                @foreach (var option in Enum.GetValues<ActionOptions>())
+                {
+                    <div>
+                        <InputRadio Value="option" /> @option
+                    </div>
+                }
+        </InputRadioGroup>
+        <ValidationMessage For="@(() => tourBookingModel.Action)" />
+    </div>
+
+    <!-- Submit Button -->
+    <button type="submit" class="btn btn-primary">Submit</button>
+</EditForm>
+
+@code {
+    @code {
+        private TourBookingModel tourBookingModel = new TourBookingModel();
+
+        public class TourBookingModel
+        {
+            [Required(ErrorMessage = "Name is required")]
+            public string Name { get; set; }
+
+            [Required(ErrorMessage = "Email is required")]
+            [EmailAddress(ErrorMessage = "Invalid email address")]
+            public string Email { get; set; }
+
+            [Required(ErrorMessage = "Please select a tour")]
+            public string Tour { get; set; }
+
+            [Required(ErrorMessage = "Please select an action")]
+            public ActionOptions? Action { get; set; }
+        }
+
+        private void HandleSubmit()
+        {
+            string routeKey = String.Concat("tour", ".", tourBookingModel.Action.ToString());
+            string message = $"Booking {{ name: {tourBookingModel.Name}, email: {tourBookingModel.Email}, tour: {tourBookingModel.Tour} }}";
+            RMQservice.SendMessage(message, routeKey);
+        }
+
+        public enum ActionOptions { booked, cancelled }
+    }
+}
